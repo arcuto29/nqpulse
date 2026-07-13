@@ -1,6 +1,6 @@
 import { Client, GatewayIntentBits, EmbedBuilder, Events, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import dotenv from 'dotenv';
-import { fetchAllQuotes, fetchQuote, fetchQQQ, fetchNQFutures } from './stockData.js';
+import { fetchAllQuotes, fetchQuote, fetchQQQ, fetchNQFutures, fetchESFutures, fetchSPY } from './stockData.js';
 import { calculateBias, calculateSectorBias, getBiasEmoji } from './biasAnalysis.js';
 import { NQ_HOLDINGS } from './config.js';
 import {
@@ -75,7 +75,7 @@ async function handleBias(interaction, isRefresh = false) {
   if (isRefresh) await interaction.deferUpdate();
   else await interaction.deferReply();
 
-  const [quotes, qqq, nq] = await Promise.all([fetchAllQuotes(), fetchQQQ(), fetchNQFutures()]);
+  const [quotes, qqq, nq, es, spy] = await Promise.all([fetchAllQuotes(), fetchQQQ(), fetchNQFutures(), fetchESFutures(), fetchSPY()]);
   const analysis = calculateBias(quotes);
   const color = getBiasColorPremium(analysis.bias);
   const now = new Date();
@@ -94,10 +94,12 @@ async function handleBias(interaction, isRefresh = false) {
   desc += `> \`${analysis.breadth.bullish}\` Green ${DOT} \`${analysis.breadth.bearish}\` Red ${DOT} \`${analysis.breadth.neutral}\` Flat \u2014 **${(analysis.breadth.ratio * 100).toFixed(0)}%** Bull Ratio\n`;
   embed.setDescription(desc);
 
-  // Futures
+  // Futures & ETFs
   let futStr = '';
   if (nq) futStr += `${getArrow(nq.changePercent)} **NQ Futures** \u2502 ${formatPrice(nq.price)} \u2502 \`${formatChange(nq.changePercent)}\`\n`;
+  if (es) futStr += `${getArrow(es.changePercent)} **ES Futures** \u2502 ${formatPrice(es.price)} \u2502 \`${formatChange(es.changePercent)}\`\n`;
   if (qqq) futStr += `${getArrow(qqq.changePercent)} **QQQ ETF** \u2502 ${formatPrice(qqq.price)} \u2502 \`${formatChange(qqq.changePercent)}\`\n`;
+  if (spy) futStr += `${getArrow(spy.changePercent)} **SPY ETF** \u2502 ${formatPrice(spy.price)} \u2502 \`${formatChange(spy.changePercent)}\`\n`;
   if (futStr) {
     futStr += `\n${marketStateDisplay(qqq?.marketState || nq?.marketState)}`;
     embed.addFields({ name: '\uD83C\uDFCE\uFE0F \u2502 INDEX & FUTURES', value: futStr, inline: false });
@@ -264,19 +266,27 @@ async function handleSectors(interaction) {
 
 async function handleFutures(interaction) {
   await interaction.deferReply();
-  const [nq, qqq] = await Promise.all([fetchNQFutures(), fetchQQQ()]);
+  const [nq, es, qqq, spy] = await Promise.all([fetchNQFutures(), fetchESFutures(), fetchQQQ(), fetchSPY()]);
 
   const embed = new EmbedBuilder().setColor(COLORS.FUTURES)
-    .setAuthor({ name: '\uD83D\uDCC8 NQ FUTURES & QQQ' }).setTimestamp().setFooter(BOT_FOOTER);
+    .setAuthor({ name: '\uD83D\uDCC8 FUTURES & ETFs LIVE' }).setTimestamp().setFooter(BOT_FOOTER);
 
   let desc = '';
   if (nq) {
     const c = nq.changePercent >= 0 ? '\u001b[1;32m' : '\u001b[1;31m';
     desc += `\`\`\`ansi\n\u001b[1;37m\u2554${'═'.repeat(31)}\u2557\n\u2551  NQ FUTURES (NQ=F)          \u2551\n\u2551  ${c}${formatPrice(nq.price).padEnd(12)} ${formatChange(nq.changePercent).padEnd(10)}\u001b[0m  \u2551\n\u2551  Range: ${formatPrice(nq.dayLow)} - ${formatPrice(nq.dayHigh)}  \u2551\n\u255A${'═'.repeat(31)}\u255D\n\`\`\`\n`;
   }
+  if (es) {
+    const c = es.changePercent >= 0 ? '\u001b[1;32m' : '\u001b[1;31m';
+    desc += `\`\`\`ansi\n\u001b[1;37m\u2554${'═'.repeat(31)}\u2557\n\u2551  ES FUTURES (ES=F)          \u2551\n\u2551  ${c}${formatPrice(es.price).padEnd(12)} ${formatChange(es.changePercent).padEnd(10)}\u001b[0m  \u2551\n\u2551  Range: ${formatPrice(es.dayLow)} - ${formatPrice(es.dayHigh)}  \u2551\n\u255A${'═'.repeat(31)}\u255D\n\`\`\`\n`;
+  }
   if (qqq) {
     const c = qqq.changePercent >= 0 ? '\u001b[1;32m' : '\u001b[1;31m';
     desc += `\`\`\`ansi\n\u001b[1;37m\u2554${'═'.repeat(31)}\u2557\n\u2551  QQQ ETF                    \u2551\n\u2551  ${c}${formatPrice(qqq.price).padEnd(12)} ${formatChange(qqq.changePercent).padEnd(10)}\u001b[0m  \u2551\n\u2551  Vol: ${formatVolume(qqq.volume).padEnd(24)}\u2551\n\u255A${'═'.repeat(31)}\u255D\n\`\`\`\n`;
+  }
+  if (spy) {
+    const c = spy.changePercent >= 0 ? '\u001b[1;32m' : '\u001b[1;31m';
+    desc += `\`\`\`ansi\n\u001b[1;37m\u2554${'═'.repeat(31)}\u2557\n\u2551  SPY ETF                    \u2551\n\u2551  ${c}${formatPrice(spy.price).padEnd(12)} ${formatChange(spy.changePercent).padEnd(10)}\u001b[0m  \u2551\n\u2551  Vol: ${formatVolume(spy.volume).padEnd(24)}\u2551\n\u255A${'═'.repeat(31)}\u255D\n\`\`\`\n`;
   }
   desc += `\n${marketStateDisplay(qqq?.marketState || nq?.marketState)}`;
   embed.setDescription(desc);

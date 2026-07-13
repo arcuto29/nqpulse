@@ -1,5 +1,5 @@
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { fetchAllQuotes, fetchQQQ, fetchNQFutures } from './stockData.js';
+import { fetchAllQuotes, fetchQQQ, fetchNQFutures, fetchESFutures, fetchSPY } from './stockData.js';
 import { calculateBias } from './biasAnalysis.js';
 import {
   biasHeader, biasMeter, percentBar, breadthVisual,
@@ -42,7 +42,7 @@ export async function startLiveBias(interaction) {
 }
 
 async function buildLiveBiasPayload() {
-  const [quotes, qqq, nq] = await Promise.all([fetchAllQuotes(), fetchQQQ(), fetchNQFutures()]);
+  const [quotes, qqq, nq, es, spy] = await Promise.all([fetchAllQuotes(), fetchQQQ(), fetchNQFutures(), fetchESFutures(), fetchSPY()]);
   const analysis = calculateBias(quotes);
   const color = getBiasColorPremium(analysis.bias);
   const now = new Date();
@@ -66,7 +66,9 @@ async function buildLiveBiasPayload() {
 
   let futuresStr = '';
   if (nq) futuresStr += `${getArrow(nq.changePercent)} **NQ** \u2502 ${formatPrice(nq.price)} \u2502 \`${formatChange(nq.changePercent)}\`\n`;
+  if (es) futuresStr += `${getArrow(es.changePercent)} **ES** \u2502 ${formatPrice(es.price)} \u2502 \`${formatChange(es.changePercent)}\`\n`;
   if (qqq) futuresStr += `${getArrow(qqq.changePercent)} **QQQ** \u2502 ${formatPrice(qqq.price)} \u2502 \`${formatChange(qqq.changePercent)}\`\n`;
+  if (spy) futuresStr += `${getArrow(spy.changePercent)} **SPY** \u2502 ${formatPrice(spy.price)} \u2502 \`${formatChange(spy.changePercent)}\`\n`;
   if (futuresStr) {
     futuresStr += `\n${marketStateDisplay(qqq?.marketState || nq?.marketState)}`;
     embed.addFields({ name: '\uD83C\uDFCE\uFE0F INDEX & FUTURES', value: futuresStr, inline: false });
@@ -121,12 +123,12 @@ export async function startLiveFutures(interaction) {
 }
 
 async function buildLiveFuturesPayload() {
-  const [nq, qqq] = await Promise.all([fetchNQFutures(), fetchQQQ()]);
+  const [nq, es, qqq, spy] = await Promise.all([fetchNQFutures(), fetchESFutures(), fetchQQQ(), fetchSPY()]);
   const now = new Date();
 
   const embed = new EmbedBuilder()
     .setColor(COLORS.FUTURES)
-    .setAuthor({ name: '\uD83D\uDCC8 NQ & QQQ \u2022 LIVE FEED' })
+    .setAuthor({ name: '\uD83D\uDCC8 FUTURES & ETFs \u2022 LIVE FEED' })
     .setTimestamp()
     .setFooter({ text: `\uD83D\uDD34 LIVE \u2022 Updates every 30s \u2022 ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` });
 
@@ -140,6 +142,15 @@ async function buildLiveFuturesPayload() {
     desc += `\u2551  H: ${formatPrice(nq.dayHigh)}  L: ${formatPrice(nq.dayLow)}  \u2551\n`;
     desc += `\u255A${'═'.repeat(31)}\u255D\n\`\`\`\n`;
   }
+  if (es) {
+    const c = es.changePercent >= 0 ? '\u001b[1;32m' : '\u001b[1;31m';
+    desc += '```ansi\n';
+    desc += `\u001b[1;37m\u2554${'═'.repeat(31)}\u2557\n`;
+    desc += `\u2551  ES FUTURES (ES=F)          \u2551\n`;
+    desc += `\u2551  ${c}${formatPrice(es.price).padEnd(12)} ${formatChange(es.changePercent).padEnd(10)}\u001b[0m  \u2551\n`;
+    desc += `\u2551  H: ${formatPrice(es.dayHigh)}  L: ${formatPrice(es.dayLow)}  \u2551\n`;
+    desc += `\u255A${'═'.repeat(31)}\u255D\n\`\`\`\n`;
+  }
   if (qqq) {
     const c = qqq.changePercent >= 0 ? '\u001b[1;32m' : '\u001b[1;31m';
     desc += '```ansi\n';
@@ -147,6 +158,15 @@ async function buildLiveFuturesPayload() {
     desc += `\u2551  QQQ ETF                    \u2551\n`;
     desc += `\u2551  ${c}${formatPrice(qqq.price).padEnd(12)} ${formatChange(qqq.changePercent).padEnd(10)}\u001b[0m  \u2551\n`;
     desc += `\u2551  Vol: ${formatVolume(qqq.volume).padEnd(24)}\u2551\n`;
+    desc += `\u255A${'═'.repeat(31)}\u255D\n\`\`\`\n`;
+  }
+  if (spy) {
+    const c = spy.changePercent >= 0 ? '\u001b[1;32m' : '\u001b[1;31m';
+    desc += '```ansi\n';
+    desc += `\u001b[1;37m\u2554${'═'.repeat(31)}\u2557\n`;
+    desc += `\u2551  SPY ETF                    \u2551\n`;
+    desc += `\u2551  ${c}${formatPrice(spy.price).padEnd(12)} ${formatChange(spy.changePercent).padEnd(10)}\u001b[0m  \u2551\n`;
+    desc += `\u2551  Vol: ${formatVolume(spy.volume).padEnd(24)}\u2551\n`;
     desc += `\u255A${'═'.repeat(31)}\u255D\n\`\`\`\n`;
   }
   desc += `${marketStateDisplay(qqq?.marketState || nq?.marketState)}`;
@@ -184,7 +204,7 @@ export async function startScheduledUpdates(channel, intervalMinutes = 5) {
 }
 
 async function buildScheduledPayload() {
-  const [quotes, nq] = await Promise.all([fetchAllQuotes(), fetchNQFutures()]);
+  const [quotes, nq, es] = await Promise.all([fetchAllQuotes(), fetchNQFutures(), fetchESFutures()]);
   const analysis = calculateBias(quotes);
   const color = getBiasColorPremium(analysis.bias);
   const now = new Date();
@@ -200,6 +220,7 @@ async function buildScheduledPayload() {
   desc += `**Meter:** ${meter}\n`;
   desc += `${breadthVisual(analysis.breadth.bullish, analysis.breadth.bearish, analysis.breadth.total)}\n`;
   if (nq) desc += `\n${getArrow(nq.changePercent)} **NQ:** ${formatPrice(nq.price)} \`${formatChange(nq.changePercent)}\``;
+  if (es) desc += `\n${getArrow(es.changePercent)} **ES:** ${formatPrice(es.price)} \`${formatChange(es.changePercent)}\``;
   if (analysis.topMovers.length > 0) {
     desc += '\n\n**Movers:** ';
     desc += analysis.topMovers.slice(0, 3).map(s => `${getArrow(s.changePercent)} ${s.symbol} \`${formatChange(s.changePercent)}\``).join(' ');
@@ -226,12 +247,13 @@ export function startTickerRotation(client) {
 
   const updateTicker = async () => {
     try {
-      const [nq, qqq] = await Promise.all([fetchNQFutures(), fetchQQQ()]);
+      const [nq, es, qqq] = await Promise.all([fetchNQFutures(), fetchESFutures(), fetchQQQ()]);
       const quotes = await fetchAllQuotes();
       const analysis = calculateBias(quotes);
 
       const statuses = [];
       if (nq) statuses.push(`NQ ${formatPrice(nq.price)} (${formatChange(nq.changePercent)})`);
+      if (es) statuses.push(`ES ${formatPrice(es.price)} (${formatChange(es.changePercent)})`);
       if (qqq) statuses.push(`QQQ ${formatPrice(qqq.price)} (${formatChange(qqq.changePercent)})`);
       statuses.push(`Bias: ${analysis.bias} | ${formatChange(analysis.score, 2)}`);
       statuses.push(`${analysis.breadth.bullish}/${analysis.breadth.total} Green | /bias`);
@@ -239,7 +261,7 @@ export function startTickerRotation(client) {
       client.user.setActivity(statuses[tickerIndex % statuses.length], { type: 3 });
       tickerIndex++;
     } catch {
-      client.user.setActivity('NQ Futures | /bias', { type: 3 });
+      client.user.setActivity('NQ & ES Futures | /bias', { type: 3 });
     }
   };
 

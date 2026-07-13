@@ -92,3 +92,17 @@ export async function fetchQQQ() {
 export async function fetchNQFutures() {
   return fetchQuote('NQ=F');
 }
+
+/**
+ * Fetch ES futures quote (S&P 500 E-mini)
+ */
+export async function fetchESFutures() {
+  return fetchQuote('ES=F');
+}
+
+/**
+ * Fetch SPY ETF quote
+ */
+export async function fetchSPY() {
+  return fetchQuote('SPY');
+}
