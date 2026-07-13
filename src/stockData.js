@@ -13,7 +13,8 @@ const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
  */
 export async function fetchQuote(symbol) {
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=2d`;
+    // Use 1m interval to get the most recent price point available
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d&includePrePost=true`;
 
     const response = await fetch(url, {
       headers: {
@@ -31,8 +32,23 @@ export async function fetchQuote(symbol) {
     if (!result) throw new Error('No data returned');
 
     const meta = result.meta;
-    const price = meta.regularMarketPrice;
     const previousClose = meta.previousClose || meta.chartPreviousClose;
+
+    // Get the most recent price: use last candle close if available, else regularMarketPrice
+    let price = meta.regularMarketPrice;
+    const timestamps = result.timestamp;
+    const closes = result.indicators?.quote?.[0]?.close;
+
+    if (timestamps && closes && closes.length > 0) {
+      // Walk backwards to find the last non-null close
+      for (let i = closes.length - 1; i >= 0; i--) {
+        if (closes[i] != null) {
+          price = closes[i];
+          break;
+        }
+      }
+    }
+
     const change = price - previousClose;
     const changePercent = previousClose ? ((change / previousClose) * 100) : 0;
 
