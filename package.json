@@ -1,0 +1,19 @@
+{
+  "name": "nqpulse",
+  "version": "1.0.0",
+  "description": "Real-time NQ/QQQ bias engine for Discord - tracks top Nasdaq holdings to determine market direction",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "deploy-commands": "node src/deploy-commands.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.0",
+    "dotenv": "^16.4.0",
+    "yahoo-finance2": "^2.13.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
